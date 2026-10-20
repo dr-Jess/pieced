@@ -1,0 +1,10 @@
+# Xcode user-specific state
+xcuserdata/
+*.xcuserstate
+
+# Xcode build output / misc
+build/
+DerivedData/
+.DS_Store
+*.xcscmblueprint
+*.xccheckout

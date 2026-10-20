@@ -1,0 +1,8 @@
+{
+    "name": "Pieced.Runtime",
+    "rootNamespace": "Pieced",
+    "references": [
+        "Unity.InputSystem"
+    ],
+    "autoReferenced": true
+}

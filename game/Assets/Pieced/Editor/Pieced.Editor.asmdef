@@ -1,0 +1,14 @@
+{
+    "name": "Pieced.Editor",
+    "rootNamespace": "Pieced.Editor",
+    "references": [
+        "Pieced.Runtime",
+        "Unity.InputSystem",
+        "Unity.RenderPipelines.Core.Runtime",
+        "Unity.RenderPipelines.Universal.Runtime"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "autoReferenced": false
+}

@@ -1,6 +1,6 @@
 # Pieced Punching Bag Prototype
 
-Open this directory with Unity `6000.6.6f1`. The editor automatically opens
+Open this directory with Unity `6000.6.8f1`. The editor automatically opens
 `Assets/Pieced/Scenes/PunchingBagPrototype.unity` when it would otherwise start
 with an untitled or temporary scene. After pulling script changes, run
 **Pieced > Build Prototype Scene** to regenerate the scene.

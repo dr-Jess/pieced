@@ -2,6 +2,7 @@
 using System.IO;
 using Pieced.Environment;
 using Pieced.Input;
+using Pieced.Networking;
 using Pieced.Player;
 using UnityEditor;
 using UnityEditor.Build;
@@ -76,7 +77,10 @@ namespace Pieced.Editor
             var systems = new GameObject("Prototype Systems");
             var input = systems.AddComponent<KeyboardInputProvider>();
             var demo = systems.AddComponent<DemoComboInputProvider>();
-            var sources = new Object[] { input, demo };
+            var stream = systems.AddComponent<MotionStreamServer>();
+            var phonePunches = systems.AddComponent<PhoneMotionPunchDetector>();
+            Set(phonePunches, "server", stream);
+            var sources = new Object[] { input, demo, phonePunches };
 
             var leftController = BuildHand(PunchHand.Left, cameraGo.transform, systems, sources, gloveMat, darkMat, trailMat, skinMat, gloveDebugMat, lineMat, out var leftGlove);
             var rightController = BuildHand(PunchHand.Right, cameraGo.transform, systems, sources, gloveMat, darkMat, trailMat, skinMat, gloveDebugMat, lineMat, out var rightGlove);

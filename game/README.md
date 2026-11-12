@@ -25,6 +25,14 @@ Unity.exe -batchmode -projectPath <path>/game -executeMethod Pieced.Editor.Proto
 - `P`: toggle the demo combo loop
 - `R`: reset the gloves and punching bag
 - `F1`: toggle the physics debug overlay
+- `F2`: toggle the motion stream status (laptop IP and connected phones)
+
+## Phone motion stream
+
+`MotionStreamServer` listens on TCP port 7777 for the iOS app (and later the
+CV pipeline). For now `PhoneMotionPunchDetector` turns a sharp phone
+acceleration into a right straight. See `tools/stream/README.md` for the
+protocol and `tools/stream/fake_phone.py` to test without a phone.
 
 ## How the physics works
 

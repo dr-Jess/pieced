@@ -6,6 +6,25 @@ MediaPipe pose tracking from the laptop webcam. Setup (creates `.venv/`, downloa
 tools/cv/setup.sh
 ```
 
+## Pose benchmark
+
+```sh
+cd tools/cv
+.venv/bin/python benchmark_pose.py --list-cameras
+.venv/bin/python benchmark_pose.py --camera <index>
+```
+
+It records one clip: 4 s to get in position, 6 s holding your guard still, then 12 s of punching.
+Then it runs lite / full / heavy on both CPU and GPU (Metal) over the same frames. It prints
+inference time, detection rate, wrist jitter at rest (pixels, % of shoulder width, world mm,
+depth mm), tracking loss while punching, and each model's wrist offset from heavy's.
+
+Each run goes in `recordings/<timestamp>/`: `clip.avi`, frame timestamps, `summary.txt`, and
+per-frame shoulder, elbow and wrist landmarks for every model as CSV. Re-run the analysis with
+`--analyze recordings/<timestamp>`.
+
+The first run asks for camera permission for your terminal app.
+
 ## Live tracking into the game
 
 ```sh

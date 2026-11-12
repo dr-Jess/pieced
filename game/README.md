@@ -34,6 +34,16 @@ CV pipeline). For now `PhoneMotionPunchDetector` turns a sharp phone
 acceleration into a right straight. See `tools/stream/README.md` for the
 protocol and `tools/stream/fake_phone.py` to test without a phone.
 
+### Phone drift scene
+
+**Pieced > Build Phone Drift Scene** generates `Scenes/PhoneDrift.unity`. It
+moves a phone-sized prism by dead reckoning (attitude for rotation, double-
+integrated acceleration for position, both in `PhonePoseEstimator`) and graphs
+both since the last reset, to measure how fast IMU-only tracking drifts. Keys:
+`R` reset to zero, `Z` zero velocity while the phone is still, `F` camera
+follows the phone, `C` clear the trail. "Frame check" should read near 0°; if
+it doesn't, the CoreMotion-to-Unity axis conversion is wrong.
+
 ## How the physics works
 
 Each glove is a dynamic rigidbody that chases a **tracked hand** (`Left/Right

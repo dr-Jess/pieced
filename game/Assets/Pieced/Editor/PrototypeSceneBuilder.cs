@@ -93,12 +93,21 @@ namespace Pieced.Editor
 
             var scenePath = Root + "/Scenes/PunchingBagPrototype.unity";
             EditorSceneManager.SaveScene(scene, scenePath);
-            EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(scenePath, true) };
+            AddToBuildSettings(scenePath, first: true);
             PlayerSettings.productName = "Pieced Punching Bag Prototype";
             PlayerSettings.companyName = "Pieced";
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Standalone, "com.pieced.punchingbagprototype");
             AssetDatabase.SaveAssets();
             Debug.Log("PIECED_SCENE_BUILD_COMPLETE");
+        }
+
+        /// <summary>Adds a scene to the build list without dropping the others.</summary>
+        internal static void AddToBuildSettings(string scenePath, bool first = false)
+        {
+            var scenes = new System.Collections.Generic.List<EditorBuildSettingsScene>(EditorBuildSettings.scenes);
+            scenes.RemoveAll(s => s.path == scenePath);
+            scenes.Insert(first ? 0 : scenes.Count, new EditorBuildSettingsScene(scenePath, true));
+            EditorBuildSettings.scenes = scenes.ToArray();
         }
 
         public static void BuildAndQuit() { Build(); EditorApplication.Exit(0); }
@@ -148,7 +157,7 @@ namespace Pieced.Editor
             return asset;
         }
 
-        private static Material Material(string name, Color color, float smoothness)
+        internal static Material Material(string name, Color color, float smoothness)
         {
             var path = Root + "/Materials/" + name + ".mat";
             var material = AssetDatabase.LoadAssetAtPath<Material>(path);
@@ -156,7 +165,7 @@ namespace Pieced.Editor
             material.color = color; material.SetFloat("_Smoothness", smoothness); EditorUtility.SetDirty(material); return material;
         }
 
-        private static GameObject Primitive(string name, PrimitiveType type, Vector3 position, Vector3 scale, Material material)
+        internal static GameObject Primitive(string name, PrimitiveType type, Vector3 position, Vector3 scale, Material material)
         {
             var go = GameObject.CreatePrimitive(type); go.name = name; go.transform.position = position; go.transform.localScale = scale; go.GetComponent<Renderer>().sharedMaterial = material; return go;
         }
@@ -237,7 +246,7 @@ namespace Pieced.Editor
 
         private static float Coverage(float signedDistance, float pixel) => Mathf.Clamp01(signedDistance / pixel + .5f);
 
-        private static Material UnlitMaterial(string name, Color color)
+        internal static Material UnlitMaterial(string name, Color color)
         {
             var path = Root + "/Materials/" + name + ".mat";
             var material = AssetDatabase.LoadAssetAtPath<Material>(path);
@@ -281,7 +290,7 @@ namespace Pieced.Editor
             return material;
         }
 
-        private static GameObject VisualChild(string name, PrimitiveType type, Transform parent, Vector3 position, Vector3 scale, Material material)
+        internal static GameObject VisualChild(string name, PrimitiveType type, Transform parent, Vector3 position, Vector3 scale, Material material)
         {
             var go = PrimitiveChild(name, type, parent, position, scale, material);
             Object.DestroyImmediate(go.GetComponent<Collider>());
@@ -301,7 +310,7 @@ namespace Pieced.Editor
             var serialized = new SerializedObject(target); serialized.FindProperty(property).enumValueIndex = value; serialized.ApplyModifiedPropertiesWithoutUndo();
         }
 
-        private static void Set(Object target, string property, Object value)
+        internal static void Set(Object target, string property, Object value)
         {
             var serialized = new SerializedObject(target); serialized.FindProperty(property).objectReferenceValue = value; serialized.ApplyModifiedPropertiesWithoutUndo();
         }

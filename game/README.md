@@ -34,6 +34,17 @@ CV pipeline). For now `PhoneMotionPunchDetector` turns a sharp phone
 acceleration into a right straight. See `tools/stream/README.md` for the
 protocol and `tools/stream/fake_phone.py` to test without a phone.
 
+### Camera-tracked hands
+
+`PoseHandDriver` moves both tracked hands to where MediaPipe sees your wrists. The data comes
+from `tools/cv/live_pose.py`, run from your own Terminal while the game is in Play mode. Each
+wrist is placed relative to its own shoulder. The first pose received is taken as your guard,
+and `C` recalibrates (hold guard and press it). Movement from guard is scaled by `gain` on the
+component. Depth defaults to 2.5x, because MediaPipe under-reads motion toward the camera; press
+`[` and `]` to adjust it live in steps of 0.25. While
+poses arrive, the scripted punch controllers pause. The physics gloves chase the targets as usual.
+Press `F1` to see the tracked bare fists next to the gloves.
+
 ### Phone drift scene
 
 **Pieced > Build Phone Drift Scene** generates `Scenes/PhoneDrift.unity`. It

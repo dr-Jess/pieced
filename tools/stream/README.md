@@ -27,6 +27,17 @@ Clients should disable Nagle (`TCP_NODELAY`) so samples aren't batched.
 | `qx qy qz qw` | attitude quaternion, `xArbitraryZVertical` reference frame |
 | `grx gry grz` | gravity direction in the device frame, in g (optional; used to sanity-check attitude) |
 
+The CV client (`tools/cv/live_pose.py`, `role: "cv"`) sends one `pose` message per camera frame:
+
+```json
+{"type":"pose","seq":1,"t":1234.567,"model":"heavy_gpu","world":[18 floats],"image":[12 floats],"vis":[6 floats]}
+```
+
+The landmark order is left shoulder, right shoulder, left elbow, right elbow, left wrist, right wrist
+(MediaPipe pose 11-16). `world` is MediaPipe's world landmarks in metres (origin between the hips,
++x = your left, +y = down, -z = toward the camera). `image` holds normalized image x, y. `vis` is
+MediaPipe's visibility, 0-1. In Unity, subscribe to `MotionStreamServer.PoseReceived`.
+
 All vectors are in the phone's device frame, not converted to Unity's axes. The
 game currently sends nothing back.
 

@@ -25,6 +25,33 @@ namespace Pieced.Networking
         public float qx, qy, qz, qw; // attitude quaternion
         public float grx, gry, grz;  // gravity, g, device frame (optional; zero if the sender omits it)
 
+        // pose (CV client): arm landmarks in order left shoulder, right shoulder, left elbow, right elbow,
+        // left wrist, right wrist (MediaPipe pose landmarks 11-16)
+        public string model;
+        public float[] world;  // 18 floats: x, y, z per landmark; MediaPipe world metres (hips origin, x = your left, y down, z toward camera = negative)
+        public float[] image;  // 12 floats: normalized image x, y per landmark
+        public float[] vis;    // 6 floats: MediaPipe visibility 0-1
+    }
+
+    /// <summary>Arm landmarks for one camera frame from the CV client (MediaPipe's coordinates, not Unity's).</summary>
+    public readonly struct PoseSample
+    {
+        public const int LeftShoulder = 0, RightShoulder = 1, LeftElbow = 2, RightElbow = 3, LeftWrist = 4, RightWrist = 5;
+
+        public readonly int clientId;
+        public readonly long sequence;
+        /// <summary>Sender clock, seconds (the CV client uses the laptop's perf_counter at frame capture).</summary>
+        public readonly double captureTime;
+        public readonly double receivedTime;
+        /// <summary>MediaPipe world landmarks, metres: hips origin, +x = your left, +y = down, -z = toward the camera.</summary>
+        public readonly Vector3[] world;
+        public readonly float[] visibility;
+
+        public PoseSample(int clientId, long sequence, double captureTime, double receivedTime, Vector3[] world, float[] visibility)
+        {
+            this.clientId = clientId; this.sequence = sequence; this.captureTime = captureTime;
+            this.receivedTime = receivedTime; this.world = world; this.visibility = visibility;
+        }
     }
 
     /// <summary>One motion reading from a connected device (currently the phone's IMU).</summary>

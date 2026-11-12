@@ -23,6 +23,7 @@ namespace Pieced.Networking
         [SerializeField] private bool showStatus = true;
 
         public event Action<MotionSample> SampleReceived;
+        public event Action<PoseSample> PoseReceived;
         public event Action<StreamClientInfo> ClientConnected;
         public event Action<StreamClientInfo> ClientDisconnected;
 
@@ -210,6 +211,17 @@ namespace Pieced.Networking
                         new Vector3(message.gx, message.gy, message.gz),
                         new Quaternion(message.qx, message.qy, message.qz, message.qw),
                         new Vector3(message.grx, message.gry, message.grz)));
+                    break;
+                case "pose":
+                    if (message.world == null || message.world.Length < 18) break;
+                    client.SamplesReceived++;
+                    var poseWindow = rateWindows[client.Id];
+                    rateWindows[client.Id] = (poseWindow.windowStart, poseWindow.count + 1);
+                    var points = new Vector3[6];
+                    for (int i = 0; i < 6; i++)
+                        points[i] = new Vector3(message.world[3 * i], message.world[3 * i + 1], message.world[3 * i + 2]);
+                    PoseReceived?.Invoke(new PoseSample(client.Id, message.seq, message.t, now, points,
+                        message.vis != null && message.vis.Length >= 6 ? message.vis : new[] { 1f, 1f, 1f, 1f, 1f, 1f }));
                     break;
                 default:
                     Debug.LogWarning($"[MotionStream] Client {client.Id} sent unknown message type '{message.type}'");

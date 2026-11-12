@@ -7,6 +7,7 @@ using NUnit.Framework;
 using Pieced.Input;
 using Pieced.Networking;
 using Pieced.Player;
+using Pieced.Tracking;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
@@ -90,6 +91,48 @@ namespace Pieced.Tests
             StringAssert.Contains("reachable", readTask.Result);
             yield return WaitUntil(() => server.Clients.Count == 0, "Browser should not stay listed as a client.");
             Object.Destroy(go);
+        }
+
+        /// <summary>A pose frame in MediaPipe world coordinates with the right wrist moved by (dx, dy, dz).</summary>
+        private static string Pose(long seq, float dx, float dy, float dz)
+        {
+            // shoulders, elbows, wrists (left, right); MediaPipe: +x = your left, +y = down, -z = toward camera
+            float[] w = { 0.18f, -0.5f, 0f, -0.18f, -0.5f, 0f, 0.25f, -0.3f, -0.1f, -0.25f, -0.3f, -0.1f,
+                          0.1f, -0.45f, -0.25f, -0.1f + dx, -0.45f + dy, -0.25f + dz };
+            var joined = string.Join(",", System.Array.ConvertAll(w, v => v.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+            return System.FormattableString.Invariant(
+                $"{{\"type\":\"pose\",\"seq\":{seq},\"t\":{seq * 0.033},\"model\":\"test\",\"world\":[{joined}],\"vis\":[1,1,1,1,1,1]}}\n");
+        }
+
+        [UnityTest]
+        public IEnumerator PoseFromCvClient_MovesTrackedHand_AndPausesScriptedPunches()
+        {
+            yield return SceneManager.LoadSceneAsync("PunchingBagPrototype", LoadSceneMode.Single);
+            yield return null;
+            var server = Object.FindAnyObjectByType<MotionStreamServer>();
+            var driver = Object.FindAnyObjectByType<PoseHandDriver>();
+            Assert.That(driver != null, "Scene has no PoseHandDriver; rebuild it with Pieced > Build Prototype Scene.");
+            var right = Object.FindObjectsByType<PlayerPunchController>().Single(c => c.Hand == PunchHand.Right);
+            var target = GameObject.Find("Right Tracked Hand").transform;
+            var guard = GameObject.Find("Right Guard Pose").transform;
+
+            using var client = new TcpClient { NoDelay = true };
+            client.Connect("127.0.0.1", server.BoundPort);
+            Send(client, "{\"type\":\"hello\",\"role\":\"cv\",\"name\":\"test\",\"protocol\":1}\n" + Pose(1, 0, 0, 0));
+            yield return WaitUntil(() => driver.IsDriving, "Driver never took over the hands.");
+            Assert.That(right.enabled, Is.False, "Scripted punches should pause while the camera drives the hands.");
+
+            // Right wrist 20 cm toward the camera (MediaPipe -z) and 10 cm to the player's right (MediaPipe -x).
+            Send(client, Pose(2, -0.10f, 0f, -0.20f));
+            yield return WaitUntil(() => target.localPosition.z - guard.localPosition.z > 0.25f, "Hand didn't move forward.");
+            yield return new WaitForSeconds(0.1f);
+            var moved = target.localPosition - guard.localPosition;
+            Assert.That(moved.z, Is.EqualTo(0.50f).Within(0.02f), "20 cm forward x depth gain 2.5");
+            Assert.That(moved.x, Is.EqualTo(0.10f).Within(0.02f), "10 cm to the player's right");
+
+            client.Close();
+            yield return WaitUntil(() => !driver.IsDriving, "Driver should hand control back when poses stop.");
+            Assert.That(right.enabled, Is.True);
         }
 
         [UnityTest]

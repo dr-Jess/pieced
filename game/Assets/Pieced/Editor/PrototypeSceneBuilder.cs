@@ -3,6 +3,7 @@ using System.IO;
 using Pieced.Environment;
 using Pieced.Input;
 using Pieced.Networking;
+using Pieced.Tracking;
 using Pieced.Player;
 using UnityEditor;
 using UnityEditor.Build;
@@ -82,8 +83,13 @@ namespace Pieced.Editor
             Set(phonePunches, "server", stream);
             var sources = new Object[] { input, demo, phonePunches };
 
-            var leftController = BuildHand(PunchHand.Left, cameraGo.transform, systems, sources, gloveMat, darkMat, trailMat, skinMat, gloveDebugMat, lineMat, out var leftGlove);
-            var rightController = BuildHand(PunchHand.Right, cameraGo.transform, systems, sources, gloveMat, darkMat, trailMat, skinMat, gloveDebugMat, lineMat, out var rightGlove);
+            var leftController = BuildHand(PunchHand.Left, cameraGo.transform, systems, sources, gloveMat, darkMat, trailMat, skinMat, gloveDebugMat, lineMat, out var leftGlove, out var leftTarget, out var leftGuard);
+            var rightController = BuildHand(PunchHand.Right, cameraGo.transform, systems, sources, gloveMat, darkMat, trailMat, skinMat, gloveDebugMat, lineMat, out var rightGlove, out var rightTarget, out var rightGuard);
+            var poseDriver = systems.AddComponent<PoseHandDriver>();
+            Set(poseDriver, "server", stream);
+            Set(poseDriver, "leftTarget", leftTarget); Set(poseDriver, "rightTarget", rightTarget);
+            Set(poseDriver, "leftGuard", leftGuard); Set(poseDriver, "rightGuard", rightGuard);
+            Set(poseDriver, "leftController", leftController); Set(poseDriver, "rightController", rightController);
 
             var manager = systems.AddComponent<PrototypeGameManager>();
             Set(manager, "resetEventSource", input); Set(manager, "bag", bag);
@@ -177,14 +183,14 @@ namespace Pieced.Editor
 
         private static PlayerPunchController BuildHand(PunchHand hand, Transform camera, GameObject systems, Object[] sources,
             Material gloveMat, Material darkMat, Material trailMat, Material skinMat, Material gloveDebugMat, Material lineMat,
-            out PhysicsGlove glove)
+            out PhysicsGlove glove, out Transform target, out Transform guard)
         {
             float side = hand == PunchHand.Right ? 1f : -1f;
-            var guard = new GameObject(hand + " Guard Pose").transform;
+            guard = new GameObject(hand + " Guard Pose").transform;
             guard.SetParent(camera, false);
             guard.localPosition = new Vector3(.27f * side, -.25f, hand == PunchHand.Right ? .32f : .38f);
             guard.localRotation = Quaternion.Euler(-12, -12 * side, 4 * side);
-            var target = new GameObject(hand + " Tracked Hand").transform;
+            target = new GameObject(hand + " Tracked Hand").transform;
             target.SetParent(camera, false); target.localPosition = guard.localPosition; target.localRotation = guard.localRotation;
             var handModel = BuildBareFist(target, side, skinMat);
 

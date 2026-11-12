@@ -1,0 +1,11 @@
+{
+  "_coordinates": "Metres, measured with a tape. Origin = the camera lens. x = sideways, positive to YOUR right when you face the camera (the camera's left); y = height above the floor; z = straight-line distance forward from the camera, along its viewing direction. Also record the lens height.",
+  "camera": { "lens_height_m": 1.10 },
+  "targets": [
+    { "name": "A", "x": -0.30, "y": 1.45, "z": 1.40, "note": "e.g. tape on door frame, head height, near" },
+    { "name": "B", "x":  0.30, "y": 1.45, "z": 1.40, "note": "" },
+    { "name": "C", "x":  0.00, "y": 1.10, "z": 1.20, "note": "closest, chest height" },
+    { "name": "D", "x": -0.40, "y": 1.00, "z": 1.80, "note": "far, low" },
+    { "name": "E", "x":  0.40, "y": 1.30, "z": 1.80, "note": "far, mid" }
+  ]
+}

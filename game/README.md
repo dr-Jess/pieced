@@ -1,6 +1,6 @@
 # Pieced Punching Bag Prototype
 
-Open this directory with Unity `6000.6.6f1`. The editor automatically opens
+Open this directory with Unity `6000.6.8f1`. The editor automatically opens
 `Assets/Pieced/Scenes/PunchingBagPrototype.unity` when it would otherwise start
 with an untitled or temporary scene. After pulling script changes, run
 **Pieced > Build Prototype Scene** to regenerate the scene.
@@ -25,6 +25,35 @@ Unity.exe -batchmode -projectPath <path>/game -executeMethod Pieced.Editor.Proto
 - `P`: toggle the demo combo loop
 - `R`: reset the gloves and punching bag
 - `F1`: toggle the physics debug overlay
+- `F2`: toggle the motion stream status (laptop IP and connected phones)
+
+## Phone motion stream
+
+`MotionStreamServer` listens on TCP port 7777 for the iOS app (and later the
+CV pipeline). For now `PhoneMotionPunchDetector` turns a sharp phone
+acceleration into a right straight. See `tools/stream/README.md` for the
+protocol and `tools/stream/fake_phone.py` to test without a phone.
+
+### Camera-tracked hands
+
+`PoseHandDriver` moves both tracked hands to where MediaPipe sees your wrists. The data comes
+from `tools/cv/live_pose.py`, run from your own Terminal while the game is in Play mode. Each
+wrist is placed relative to its own shoulder. The first pose received is taken as your guard,
+and `C` recalibrates (hold guard and press it). Movement from guard is scaled by `gain` on the
+component. Depth defaults to 2.5x, because MediaPipe under-reads motion toward the camera; press
+`[` and `]` to adjust it live in steps of 0.25. While
+poses arrive, the scripted punch controllers pause. The physics gloves chase the targets as usual.
+Press `F1` to see the tracked bare fists next to the gloves.
+
+### Phone drift scene
+
+**Pieced > Build Phone Drift Scene** generates `Scenes/PhoneDrift.unity`. It
+moves a phone-sized prism by dead reckoning (attitude for rotation, double-
+integrated acceleration for position, both in `PhonePoseEstimator`) and graphs
+both since the last reset, to measure how fast IMU-only tracking drifts. Keys:
+`R` reset to zero, `Z` zero velocity while the phone is still, `F` camera
+follows the phone, `C` clear the trail. "Frame check" should read near 0°; if
+it doesn't, the CoreMotion-to-Unity axis conversion is wrong.
 
 ## How the physics works
 

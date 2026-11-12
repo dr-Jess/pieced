@@ -2,6 +2,8 @@
 using System.IO;
 using Pieced.Environment;
 using Pieced.Input;
+using Pieced.Networking;
+using Pieced.Tracking;
 using Pieced.Player;
 using UnityEditor;
 using UnityEditor.Build;
@@ -76,10 +78,18 @@ namespace Pieced.Editor
             var systems = new GameObject("Prototype Systems");
             var input = systems.AddComponent<KeyboardInputProvider>();
             var demo = systems.AddComponent<DemoComboInputProvider>();
-            var sources = new Object[] { input, demo };
+            var stream = systems.AddComponent<MotionStreamServer>();
+            var phonePunches = systems.AddComponent<PhoneMotionPunchDetector>();
+            Set(phonePunches, "server", stream);
+            var sources = new Object[] { input, demo, phonePunches };
 
-            var leftController = BuildHand(PunchHand.Left, cameraGo.transform, systems, sources, gloveMat, darkMat, trailMat, skinMat, gloveDebugMat, lineMat, out var leftGlove);
-            var rightController = BuildHand(PunchHand.Right, cameraGo.transform, systems, sources, gloveMat, darkMat, trailMat, skinMat, gloveDebugMat, lineMat, out var rightGlove);
+            var leftController = BuildHand(PunchHand.Left, cameraGo.transform, systems, sources, gloveMat, darkMat, trailMat, skinMat, gloveDebugMat, lineMat, out var leftGlove, out var leftTarget, out var leftGuard);
+            var rightController = BuildHand(PunchHand.Right, cameraGo.transform, systems, sources, gloveMat, darkMat, trailMat, skinMat, gloveDebugMat, lineMat, out var rightGlove, out var rightTarget, out var rightGuard);
+            var poseDriver = systems.AddComponent<PoseHandDriver>();
+            Set(poseDriver, "server", stream);
+            Set(poseDriver, "leftTarget", leftTarget); Set(poseDriver, "rightTarget", rightTarget);
+            Set(poseDriver, "leftGuard", leftGuard); Set(poseDriver, "rightGuard", rightGuard);
+            Set(poseDriver, "leftController", leftController); Set(poseDriver, "rightController", rightController);
 
             var manager = systems.AddComponent<PrototypeGameManager>();
             Set(manager, "resetEventSource", input); Set(manager, "bag", bag);
@@ -89,12 +99,21 @@ namespace Pieced.Editor
 
             var scenePath = Root + "/Scenes/PunchingBagPrototype.unity";
             EditorSceneManager.SaveScene(scene, scenePath);
-            EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(scenePath, true) };
+            AddToBuildSettings(scenePath, first: true);
             PlayerSettings.productName = "Pieced Punching Bag Prototype";
             PlayerSettings.companyName = "Pieced";
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Standalone, "com.pieced.punchingbagprototype");
             AssetDatabase.SaveAssets();
             Debug.Log("PIECED_SCENE_BUILD_COMPLETE");
+        }
+
+        /// <summary>Adds a scene to the build list without dropping the others.</summary>
+        internal static void AddToBuildSettings(string scenePath, bool first = false)
+        {
+            var scenes = new System.Collections.Generic.List<EditorBuildSettingsScene>(EditorBuildSettings.scenes);
+            scenes.RemoveAll(s => s.path == scenePath);
+            scenes.Insert(first ? 0 : scenes.Count, new EditorBuildSettingsScene(scenePath, true));
+            EditorBuildSettings.scenes = scenes.ToArray();
         }
 
         public static void BuildAndQuit() { Build(); EditorApplication.Exit(0); }
@@ -144,7 +163,7 @@ namespace Pieced.Editor
             return asset;
         }
 
-        private static Material Material(string name, Color color, float smoothness)
+        internal static Material Material(string name, Color color, float smoothness)
         {
             var path = Root + "/Materials/" + name + ".mat";
             var material = AssetDatabase.LoadAssetAtPath<Material>(path);
@@ -152,7 +171,7 @@ namespace Pieced.Editor
             material.color = color; material.SetFloat("_Smoothness", smoothness); EditorUtility.SetDirty(material); return material;
         }
 
-        private static GameObject Primitive(string name, PrimitiveType type, Vector3 position, Vector3 scale, Material material)
+        internal static GameObject Primitive(string name, PrimitiveType type, Vector3 position, Vector3 scale, Material material)
         {
             var go = GameObject.CreatePrimitive(type); go.name = name; go.transform.position = position; go.transform.localScale = scale; go.GetComponent<Renderer>().sharedMaterial = material; return go;
         }
@@ -164,14 +183,14 @@ namespace Pieced.Editor
 
         private static PlayerPunchController BuildHand(PunchHand hand, Transform camera, GameObject systems, Object[] sources,
             Material gloveMat, Material darkMat, Material trailMat, Material skinMat, Material gloveDebugMat, Material lineMat,
-            out PhysicsGlove glove)
+            out PhysicsGlove glove, out Transform target, out Transform guard)
         {
             float side = hand == PunchHand.Right ? 1f : -1f;
-            var guard = new GameObject(hand + " Guard Pose").transform;
+            guard = new GameObject(hand + " Guard Pose").transform;
             guard.SetParent(camera, false);
             guard.localPosition = new Vector3(.27f * side, -.25f, hand == PunchHand.Right ? .32f : .38f);
             guard.localRotation = Quaternion.Euler(-12, -12 * side, 4 * side);
-            var target = new GameObject(hand + " Tracked Hand").transform;
+            target = new GameObject(hand + " Tracked Hand").transform;
             target.SetParent(camera, false); target.localPosition = guard.localPosition; target.localRotation = guard.localRotation;
             var handModel = BuildBareFist(target, side, skinMat);
 
@@ -233,7 +252,7 @@ namespace Pieced.Editor
 
         private static float Coverage(float signedDistance, float pixel) => Mathf.Clamp01(signedDistance / pixel + .5f);
 
-        private static Material UnlitMaterial(string name, Color color)
+        internal static Material UnlitMaterial(string name, Color color)
         {
             var path = Root + "/Materials/" + name + ".mat";
             var material = AssetDatabase.LoadAssetAtPath<Material>(path);
@@ -277,7 +296,7 @@ namespace Pieced.Editor
             return material;
         }
 
-        private static GameObject VisualChild(string name, PrimitiveType type, Transform parent, Vector3 position, Vector3 scale, Material material)
+        internal static GameObject VisualChild(string name, PrimitiveType type, Transform parent, Vector3 position, Vector3 scale, Material material)
         {
             var go = PrimitiveChild(name, type, parent, position, scale, material);
             Object.DestroyImmediate(go.GetComponent<Collider>());
@@ -297,7 +316,7 @@ namespace Pieced.Editor
             var serialized = new SerializedObject(target); serialized.FindProperty(property).enumValueIndex = value; serialized.ApplyModifiedPropertiesWithoutUndo();
         }
 
-        private static void Set(Object target, string property, Object value)
+        internal static void Set(Object target, string property, Object value)
         {
             var serialized = new SerializedObject(target); serialized.FindProperty(property).objectReferenceValue = value; serialized.ApplyModifiedPropertiesWithoutUndo();
         }

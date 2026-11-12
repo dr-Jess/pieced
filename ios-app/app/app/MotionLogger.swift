@@ -8,47 +8,91 @@
 import CoreMotion
 import Combine
 
-struct AccelSample: Identifiable {
-    let id = UUID()
-    let timestamp: TimeInterval   // seconds since device boot
-    let x: Double                 // in g
-    let y: Double
-    let z: Double
+/// One IMU reading, encoded as a "motion" message on the wire (tools/stream/README.md).
+nonisolated struct MotionSample: Encodable, Identifiable, Sendable {
+    var type = "motion"
+    let seq: Int
+    let t: TimeInterval            // seconds since device boot
+    let ax, ay, az: Double         // user acceleration (gravity removed), g
+    let gx, gy, gz: Double         // rotation rate, rad/s
+    let qx, qy, qz, qw: Double     // attitude quaternion
+    let grx, gry, grz: Double      // gravity, g, device frame
+
+    var id: Int { seq }
+    var accelerationMagnitude: Double { (ax * ax + ay * ay + az * az).squareRoot() }
+
+    private enum CodingKeys: String, CodingKey {
+        case type, seq, t, ax, ay, az, gx, gy, gz, qx, qy, qz, qw, grx, gry, grz
+    }
+}
+
+/// Numbers samples and forwards them to the stream. Only touched from the CoreMotion queue.
+nonisolated private final class SamplePump: @unchecked Sendable {
+    private var seq = 0
+    private let client: StreamClient
+
+    init(client: StreamClient) { self.client = client }
+
+    func process(_ m: CMDeviceMotion) -> MotionSample {
+        seq += 1
+        let a = m.userAcceleration, r = m.rotationRate, q = m.attitude.quaternion, g = m.gravity
+        let sample = MotionSample(seq: seq, t: m.timestamp,
+                                  ax: a.x, ay: a.y, az: a.z,
+                                  gx: r.x, gy: r.y, gz: r.z,
+                                  qx: q.x, qy: q.y, qz: q.z, qw: q.w,
+                                  grx: g.x, gry: g.y, grz: g.z)
+        client.send(sample)
+        return sample
+    }
 }
 
 final class MotionManager: ObservableObject {
-    private let motion = CMMotionManager()
-    private let queue = OperationQueue()
+    static let sampleRate = 100.0
+    private static let uiEveryNthSample = 5   // refresh the UI at 20 Hz; streaming stays at full rate
 
-    @Published var latest: AccelSample?
-    @Published var log: [AccelSample] = []
+    let stream: StreamClient
+    private let motion = CMMotionManager()
+    private let queue: OperationQueue = {
+        let q = OperationQueue()
+        q.maxConcurrentOperationCount = 1
+        q.qualityOfService = .userInteractive
+        return q
+    }()
+
+    @Published var latest: MotionSample?
+    @Published var log: [MotionSample] = []
     @Published var isRunning = false
 
-    var isAvailable: Bool { motion.isAccelerometerAvailable }
+    var isAvailable: Bool { motion.isDeviceMotionAvailable }
 
-    func start(hz: Double = 50) {
-        guard motion.isAccelerometerAvailable, !motion.isAccelerometerActive else { return }
-        motion.accelerometerUpdateInterval = 1.0 / hz
+    init(stream: StreamClient) { self.stream = stream }
 
-        motion.startAccelerometerUpdates(to: queue) { [weak self] data, error in
-            guard let self, let d = data else { return }
-            let sample = AccelSample(timestamp: d.timestamp,
-                                     x: d.acceleration.x,
-                                     y: d.acceleration.y,
-                                     z: d.acceleration.z)
-            DispatchQueue.main.async {
-                self.latest = sample
-                self.log.append(sample)
-                if self.log.count > 100 {
-                    self.log.removeFirst(self.log.count - 100)
-                }
-            }
+    func start() {
+        guard motion.isDeviceMotionAvailable, !motion.isDeviceMotionActive else { return }
+        motion.deviceMotionUpdateInterval = 1.0 / Self.sampleRate
+        let pump = SamplePump(client: stream)
+        let uiEvery = Self.uiEveryNthSample
+        let show: @MainActor @Sendable (MotionSample) -> Void = { [weak self] sample in self?.show(sample) }
+
+        motion.startDeviceMotionUpdates(using: .xArbitraryZVertical, to: queue) { @Sendable data, _ in
+            guard let data else { return }
+            let sample = pump.process(data)
+            guard sample.seq % uiEvery == 0 else { return }
+            Task { @MainActor in show(sample) }
         }
         isRunning = true
     }
 
     func stop() {
-        motion.stopAccelerometerUpdates()
+        motion.stopDeviceMotionUpdates()
         isRunning = false
+    }
+
+    private func show(_ sample: MotionSample) {
+        latest = sample
+        log.append(sample)
+        if log.count > 100 {
+            log.removeFirst(log.count - 100)
+        }
     }
 }

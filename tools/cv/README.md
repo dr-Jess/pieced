@@ -25,6 +25,29 @@ per-frame shoulder, elbow and wrist landmarks for every model as CSV. Re-run the
 
 The first run asks for camera permission for your terminal app.
 
+## Synchronized phone + camera session
+
+```sh
+cd tools/cv
+.venv/bin/python record_session.py --camera 0 [--targets targets.json]
+```
+
+Stop Unity's Play mode first: the recorder listens on port 7777 itself. Connect the phone app to
+the IP shown in the preview, then press SPACE. Hold the phone in your **right** fist. The prompts
+walk you through sync jabs, holding guard, two calibration moves (slide your fist left-right
+parallel to the camera, then push it straight at the lens), touching tape targets (if you pass
+`--targets`), free punching, then sync jabs again. The start screen warns if AWDL (the AirDrop
+radio) is on, since it causes ~100 ms Wi-Fi stalls twice a second; `sudo ifconfig awdl0 down`
+turns it off until macOS re-enables it.
+
+Afterwards it writes a report (camera rate, phone rate, dropped samples, network jitter) and runs
+MediaPipe heavy (GPU) and full (CPU) on the clip. Everything is timestamped with one laptop clock.
+Use `--reprocess recordings/session-<timestamp>` to redo the report and landmarks.
+
+**Touch targets (ground truth):** copy `targets.example.json` to `targets.json`. Put 4-6 pieces of
+tape within reach at different heights, sides and distances, and measure each one from the
+camera lens with a tape measure. The coordinate convention is in the file.
+
 ## Live tracking into the game
 
 ```sh

@@ -58,3 +58,15 @@ cd tools/cv
 Start the game's Play mode first; the script keeps retrying until it can connect. Stand in guard
 when tracking starts. A preview window shows the tracked arms, the frame rate and the inference
 time (`--no-preview` hides it).
+
+## Fusion filter (phone + camera)
+
+- `fusion.py`: the filter, written the way it has to run live. The phone predicts at 100 Hz.
+  Camera frames are applied at their capture time (rewind and replay). It uses a perspective
+  (pinhole) camera model.
+- `fuse_session.py recordings/session-<ts>`: runs the flat and perspective camera models and scores
+  them: next-frame prediction, camera-dropout tracking vs freezing, reach, latency. Writes
+  `fusion.txt`, `fusion.png` and `fused.csv`. `--shoulder` and `--hfov` set the camera geometry
+  (results barely change across realistic values).
+- `render_fusion.py recordings/session-<ts>`: `fusion_review.mp4` shows the camera view with the
+  fused fist, an overhead view with the camera ray, and graphs.
